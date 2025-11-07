@@ -16,10 +16,10 @@ import com.minikasirpintarfree.app.data.repository.ProdukRepository
 import com.minikasirpintarfree.app.data.repository.TransaksiRepository
 import com.minikasirpintarfree.app.databinding.FragmentSettingsBinding
 import com.minikasirpintarfree.app.ui.login.LoginActivity
-import com.minikasirpintarfree.app.viewmodel.SettingsViewModel
-import com.minikasirpintarfree.app.viewmodel.SettingsViewModelFactory
 import com.minikasirpintarfree.app.viewmodel.LoginViewModel
 import com.minikasirpintarfree.app.viewmodel.LoginViewModelFactory
+import com.minikasirpintarfree.app.viewmodel.SettingsViewModel
+import com.minikasirpintarfree.app.viewmodel.SettingsViewModelFactory
 
 class SettingsFragment : Fragment() {
     private var _binding: FragmentSettingsBinding? = null
@@ -38,7 +38,6 @@ class SettingsFragment : Fragment() {
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
         try {
             val database = AppDatabase.getDatabase(requireContext())
             val produkRepository = ProdukRepository(database.produkDao())
