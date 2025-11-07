@@ -449,5 +449,29 @@ android {
 ---
 
 **Dokumentasi dibuat:** 2025
-**Last updated:** Fase 2 Selesai
-**Status:** Fase 1 ✅ | Fase 2 ✅ | Fase 3 ⏳
+**Last updated:** Fase 2 Selesai + Bug Fix Compilation Errors
+**Status:** Fase 1 ✅ | Fase 2 ✅ | Bug Fix ✅ | Fase 3 ⏳
+
+---
+
+## 🐛 BUG FIX: Compilation Errors ProdukActivity.kt
+
+**Status: SELESAI ✅**
+
+### Masalah
+- Compilation errors di `ProdukActivity.kt` baris 217 dan 232
+- Error: "No value passed for parameter 'onSave'"
+- Error: "Type mismatch" saat memanggil `AddEditProdukDialogFragment`
+
+### Root Cause
+- Kotlin meng-infer lambda `{ produk -> ... }` sebagai parameter ke-3 (`prefillBarcode: String?`) bukan parameter ke-2 (`onSave`)
+- Parameter `onSave` tidak di-pass, sehingga terjadi compilation error
+
+### Solusi
+- Update `showAddProdukDialog()` dan `showEditProdukDialog()` untuk menggunakan **named parameters**
+- Eksplisit menentukan `produk = ...` dan `onSave = { ... }`
+
+### File yang Diubah
+- `/app/app/src/main/java/com/minikasirpintarfree/app/ui/produk/ProdukActivity.kt` (baris 216-242)
+
+**Detail:** Lihat `/app/dokumentasi/fix_compilation_errors.md`

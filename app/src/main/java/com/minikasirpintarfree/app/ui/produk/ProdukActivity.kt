@@ -214,24 +214,30 @@ class ProdukActivity : AppCompatActivity() {
     }
     
     private fun showAddProdukDialog() {
-        val dialog = AddEditProdukDialogFragment(null) { produk ->
-            viewModel.insertProduk(produk)
-            // Show notification for new product
-            NotificationHelper.showNotification(
-                this,
-                "Produk Berhasil Ditambahkan",
-                "Produk ${produk.nama} berhasil didaftarkan",
-                NotificationHelper.NOTIFICATION_ID_LOW_STOCK + 1,
-                "PRODUCT_ADDED"
-            )
-        }
+        val dialog = AddEditProdukDialogFragment(
+            produk = null,
+            onSave = { produk ->
+                viewModel.insertProduk(produk)
+                // Show notification for new product
+                NotificationHelper.showNotification(
+                    this,
+                    "Produk Berhasil Ditambahkan",
+                    "Produk ${produk.nama} berhasil didaftarkan",
+                    NotificationHelper.NOTIFICATION_ID_LOW_STOCK + 1,
+                    "PRODUCT_ADDED"
+                )
+            }
+        )
         dialog.show(supportFragmentManager, "AddProdukDialog")
     }
     
     private fun showEditProdukDialog(produk: Produk) {
-        val dialog = AddEditProdukDialogFragment(produk) { updatedProduk ->
-            viewModel.updateProduk(updatedProduk)
-        }
+        val dialog = AddEditProdukDialogFragment(
+            produk = produk,
+            onSave = { updatedProduk ->
+                viewModel.updateProduk(updatedProduk)
+            }
+        )
         dialog.show(supportFragmentManager, "EditProdukDialog")
     }
 }
