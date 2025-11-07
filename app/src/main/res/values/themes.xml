@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MiniKasir" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">#FF9800</item>
+        <item name="colorPrimaryDark">#F57C00</item>
+        <item name="colorAccent">#FF9800</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+</resources>
+

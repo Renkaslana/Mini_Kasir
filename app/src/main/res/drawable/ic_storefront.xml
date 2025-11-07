@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Building/Storefront Icon -->
+    <!-- Main building shape with roof -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M12,3L2,12h3v8h6v-6h2v6h6v-8h3L12,3z"/>
+    <!-- Window left -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M7,14h2v2H7V14z"/>
+    <!-- Window right -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M15,14h2v2h-2V14z"/>
+    <!-- Door -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M10,16h4v4h-4V16z"/>
+</vector>
+

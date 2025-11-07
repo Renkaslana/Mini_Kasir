@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background circle -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M54,54m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0"/>
+    <!-- Calculator/Cash Register Icon -->
+    <group android:translateX="54" android:translateY="54">
+        <!-- Calculator body -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-25,-20 L25,-20 L25,20 L-25,20 Z"/>
+        <!-- Screen -->
+        <path
+            android:fillColor="#4CAF50"
+            android:pathData="M-20,-15 L20,-15 L20,-5 L-20,-5 Z"/>
+        <!-- Buttons row 1 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-15,1 L-11,1 L-11,5 L-15,5 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-5,1 L-1,1 L-1,5 L-5,5 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M5,1 L9,1 L9,5 L5,5 Z"/>
+        <!-- Buttons row 2 -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-15,11 L-11,11 L-11,15 L-15,15 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-5,11 L-1,11 L-1,15 L-5,15 Z"/>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M5,11 L9,11 L9,15 L5,15 Z"/>
+    </group>
+</vector>
