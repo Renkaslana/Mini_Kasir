@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.observe
 import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
@@ -38,7 +37,6 @@ class LaporanFragment : Fragment() {
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
         try {
             val database = AppDatabase.getDatabase(requireContext())
             val transaksiRepository = TransaksiRepository(database.transaksiDao())
@@ -57,16 +55,12 @@ class LaporanFragment : Fragment() {
     }
     
     private fun setupClickListeners() {
-        binding.btnHariIni.setOnClickListener {
-            viewModel.loadTransaksiHariIni()
-        }
-        
-        binding.btnMingguIni.setOnClickListener {
-            viewModel.loadTransaksiMingguIni()
-        }
-        
-        binding.btnBulanIni.setOnClickListener {
-            viewModel.loadTransaksiBulanIni()
+        binding.radioGroupPeriod.setOnCheckedChangeListener { _, checkedId ->
+            when (checkedId) {
+                R.id.radioHariIni -> viewModel.loadTransaksiHariIni()
+                R.id.radioMingguIni -> viewModel.loadTransaksiMingguIni()
+                R.id.radioBulanIni -> viewModel.loadTransaksiBulanIni()
+            }
         }
         
         binding.btnExportPdf.setOnClickListener {
@@ -80,10 +74,6 @@ class LaporanFragment : Fragment() {
                 updateStatistics()
                 updateChart()
             }
-        }
-        
-        viewModel.selectedPeriod.observe(viewLifecycleOwner) { period ->
-            binding.tvSelectedPeriod.text = "Periode: $period"
         }
     }
     

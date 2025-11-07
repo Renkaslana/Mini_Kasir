@@ -16,7 +16,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.observe
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.zxing.integration.android.IntentIntegrator
@@ -27,9 +26,9 @@ import com.minikasirpintarfree.app.data.model.TransaksiItem
 import com.minikasirpintarfree.app.data.repository.ProdukRepository
 import com.minikasirpintarfree.app.data.repository.TransaksiRepository
 import com.minikasirpintarfree.app.databinding.FragmentTransaksiBinding
-import com.minikasirpintarfree.app.utils.PdfGenerator
-import com.minikasirpintarfree.app.utils.NotificationHelper
 import com.minikasirpintarfree.app.ui.produk.AddEditProdukDialogFragment
+import com.minikasirpintarfree.app.utils.NotificationHelper
+import com.minikasirpintarfree.app.utils.PdfGenerator
 import com.minikasirpintarfree.app.viewmodel.TransaksiViewModel
 import com.minikasirpintarfree.app.viewmodel.TransaksiViewModelFactory
 import kotlinx.coroutines.launch
@@ -56,7 +55,6 @@ class TransaksiFragment : Fragment() {
     
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
         try {
             setupScannerLauncher()
             
@@ -186,9 +184,7 @@ class TransaksiFragment : Fragment() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CAMERA_PERMISSION_CODE &&
-            grantResults.isNotEmpty() &&
-            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == CAMERA_PERMISSION_CODE && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startBarcodeScanner()
         }
     }
