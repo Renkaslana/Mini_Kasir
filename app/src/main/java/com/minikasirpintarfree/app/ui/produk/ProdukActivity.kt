@@ -1,14 +1,15 @@
-@file:Suppress("DEPRECATION")
-
 package com.minikasirpintarfree.app.ui.produk
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -35,11 +36,17 @@ class ProdukActivity : AppCompatActivity() {
     private lateinit var adapter: ProdukAdapter
     private val CAMERA_PERMISSION_CODE = 100
     
+    // Modern Activity Result API - Lifecycle aware
+    private lateinit var scannerLauncher: ActivityResultLauncher<Intent>
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
             binding = ActivityProdukBinding.inflate(layoutInflater)
             setContentView(binding.root)
+            
+            // Setup modern scanner launcher
+            setupScannerLauncher()
             
             val database = AppDatabase.getDatabase(this)
             val produkRepository = ProdukRepository(database.produkDao())
@@ -56,6 +63,38 @@ class ProdukActivity : AppCompatActivity() {
             android.util.Log.e("ProdukActivity", "Error in onCreate", e)
             Toast.makeText(this, "Terjadi kesalahan: ${e.message}", Toast.LENGTH_LONG).show()
             finish()
+        }
+    }
+    
+    // Setup modern Activity Result API for scanner
+    private fun setupScannerLauncher() {
+        scannerLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val scanResult = IntentIntegrator.parseActivityResult(
+                    IntentIntegrator.REQUEST_CODE,
+                    result.resultCode,
+                    result.data
+                )
+                if (scanResult != null) {
+                    if (scanResult.contents == null) {
+                        Toast.makeText(this, "Scan dibatalkan", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val barcode = scanResult.contents
+                        viewModel.getProdukByBarcode(
+                            barcode,
+                            onSuccess = { produk: Produk ->
+                                Toast.makeText(this@ProdukActivity, "Produk ditemukan: ${produk.nama}", Toast.LENGTH_SHORT).show()
+                                showEditProdukDialog(produk)
+                            },
+                            onError = {
+                                Toast.makeText(this@ProdukActivity, "Produk dengan barcode $barcode tidak ditemukan", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
     
@@ -186,31 +225,9 @@ class ProdukActivity : AppCompatActivity() {
         integrator.setCameraId(0)
         integrator.setBeepEnabled(false)
         integrator.setBarcodeImageEnabled(false)
-        integrator.initiateScan()
-    }
-    
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
-        if (result != null) {
-            if (result.contents == null) {
-                Toast.makeText(this, "Scan dibatalkan", Toast.LENGTH_SHORT).show()
-            } else {
-                val barcode = result.contents
-                viewModel.getProdukByBarcode(
-                    barcode,
-                    onSuccess = { produk: Produk ->
-                        Toast.makeText(this@ProdukActivity, "Produk ditemukan: ${produk.nama}", Toast.LENGTH_SHORT).show()
-                        showEditProdukDialog(produk)
-                    },
-                    onError = {
-                        Toast.makeText(this@ProdukActivity, "Produk dengan barcode $barcode tidak ditemukan", Toast.LENGTH_SHORT).show()
-                        // Optionally open add dialog with barcode pre-filled
-                    }
-                )
-            }
-        } else {
-            super.onActivityResult(requestCode, resultCode, data)
-        }
+        
+        // Launch using modern API instead of deprecated initiateScan()
+        scannerLauncher.launch(integrator.createScanIntent())
     }
     
     private fun showAddProdukDialog() {

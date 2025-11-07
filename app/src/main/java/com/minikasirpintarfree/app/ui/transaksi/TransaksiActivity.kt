@@ -1,12 +1,13 @@
-@file:Suppress("DEPRECATION")
-
 package com.minikasirpintarfree.app.ui.transaksi
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import android.view.Menu
 import android.view.MenuItem
@@ -17,7 +18,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.observe
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.first
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.zxing.integration.android.IntentIntegrator
 import com.minikasirpintarfree.app.R
@@ -40,8 +40,10 @@ class TransaksiActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTransaksiBinding
     private lateinit var viewModel: TransaksiViewModel
     private lateinit var adapter: TransaksiItemAdapter
-    private lateinit var produkRepository: ProdukRepository  // ✅ TAMBAHAN: Untuk digunakan di showAddProdukDialog
     private val CAMERA_PERMISSION_CODE = 100
+    
+    // Modern Activity Result API - Lifecycle aware
+    private lateinit var scannerLauncher: ActivityResultLauncher<Intent>
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,8 +51,11 @@ class TransaksiActivity : AppCompatActivity() {
             binding = ActivityTransaksiBinding.inflate(layoutInflater)
             setContentView(binding.root)
             
+            // Setup modern scanner launcher
+            setupScannerLauncher()
+            
             val database = AppDatabase.getDatabase(this)
-            produkRepository = ProdukRepository(database.produkDao())  // ✅ TAMBAHAN: Initialize repository
+            val produkRepository = ProdukRepository(database.produkDao())
             val transaksiRepository = TransaksiRepository(database.transaksiDao())
             viewModel = ViewModelProvider(this, TransaksiViewModelFactory(transaksiRepository, produkRepository))[TransaksiViewModel::class.java]
             
@@ -66,6 +71,26 @@ class TransaksiActivity : AppCompatActivity() {
             android.util.Log.e("TransaksiActivity", "Error in onCreate", e)
             Toast.makeText(this, "Terjadi kesalahan: ${e.message}", Toast.LENGTH_LONG).show()
             finish()
+        }
+    }
+    
+    // Setup modern Activity Result API for scanner
+    private fun setupScannerLauncher() {
+        scannerLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val scanResult = IntentIntegrator.parseActivityResult(
+                    IntentIntegrator.REQUEST_CODE,
+                    result.resultCode,
+                    result.data
+                )
+                if (scanResult != null && scanResult.contents != null) {
+                    val barcode = scanResult.contents
+                    // ✅ FASE 3.2: MVVM - Panggil fungsi di ViewModel, bukan langsung ke repository
+                    viewModel.addProdukByBarcode(barcode)
+                }
+            }
         }
     }
     
@@ -94,7 +119,8 @@ class TransaksiActivity : AppCompatActivity() {
         binding.btnSearchProduk.setOnClickListener {
             val query = binding.etSearchProduk.text.toString().trim()
             if (query.isNotEmpty()) {
-                searchAndAddProduk(query)
+                // ✅ FASE 3.2: MVVM - Panggil fungsi di ViewModel
+                viewModel.searchAndAddProduk(query)
             }
         }
         
@@ -130,6 +156,11 @@ class TransaksiActivity : AppCompatActivity() {
         viewModel.successMessage.observe(this) { message: String ->
             Toast.makeText(this@TransaksiActivity, message, Toast.LENGTH_SHORT).show()
         }
+        
+        // ✅ FASE 3.2: MVVM - Observe product not found event
+        viewModel.productNotFound.observe(this) { barcode: String ->
+            showProductNotFoundDialog(barcode)
+        }
     }
     
     private fun checkCameraPermission(): Boolean {
@@ -153,40 +184,9 @@ class TransaksiActivity : AppCompatActivity() {
         integrator.setPrompt("Scan barcode produk")
         integrator.setCameraId(0)
         integrator.setBeepEnabled(false)
-        integrator.initiateScan()
-    }
-    
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
-        if (result != null && result.contents != null) {
-            val barcode = result.contents
-            addProdukByBarcode(barcode)
-        } else {
-            super.onActivityResult(requestCode, resultCode, data)
-        }
-    }
-    
-    private fun addProdukByBarcode(barcode: String) {
-        val database = com.minikasirpintarfree.app.data.database.AppDatabase.getDatabase(this)
-        val produkRepository = com.minikasirpintarfree.app.data.repository.ProdukRepository(database.produkDao())
         
-        lifecycleScope.launch {
-            val produk = produkRepository.getProdukByBarcode(barcode)
-            if (produk != null) {
-                val item = com.minikasirpintarfree.app.data.model.TransaksiItem(
-                    produkId = produk.id,
-                    namaProduk = produk.nama,
-                    harga = produk.harga,
-                    quantity = 1,
-                    subtotal = produk.harga
-                )
-                viewModel.addItemToCart(item)
-                Toast.makeText(this@TransaksiActivity, "Produk ditambahkan: ${produk.nama}", Toast.LENGTH_SHORT).show()
-            } else {
-                // ✅ FASE 2.1: Ganti Toast dengan AlertDialog
-                showProductNotFoundDialog(barcode)
-            }
-        }
+        // Launch using modern API instead of deprecated initiateScan()
+        scannerLauncher.launch(integrator.createScanIntent())
     }
     
     // ✅ FASE 2.1: Fungsi baru untuk show AlertDialog saat produk tidak ditemukan
@@ -202,56 +202,19 @@ class TransaksiActivity : AppCompatActivity() {
             .show()
     }
     
-    // ✅ FASE 2.1: Fungsi baru untuk show dialog tambah produk dengan barcode pre-filled
+    // ✅ FASE 3.2: MVVM - Activity hanya handle UI, ViewModel handle business logic
     private fun showAddProdukDialog(barcode: String) {
         val dialog = AddEditProdukDialogFragment(
             produk = null,
             onSave = { newProduk ->
                 lifecycleScope.launch {
-                    try {
-                        produkRepository.insertProduk(newProduk)
-                        Toast.makeText(this@TransaksiActivity, "Produk berhasil ditambahkan!", Toast.LENGTH_SHORT).show()
-                        
-                        // Auto-add produk ke keranjang setelah berhasil ditambahkan
-                        val item = com.minikasirpintarfree.app.data.model.TransaksiItem(
-                            produkId = newProduk.id,
-                            namaProduk = newProduk.nama,
-                            harga = newProduk.harga,
-                            quantity = 1,
-                            subtotal = newProduk.harga
-                        )
-                        viewModel.addItemToCart(item)
-                    } catch (e: Exception) {
-                        Toast.makeText(this@TransaksiActivity, "Gagal menambahkan produk: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+                    // Gunakan fungsi dari ViewModel untuk insert dan add to cart
+                    viewModel.insertProdukAndAddToCart(newProduk)
                 }
             },
-            prefillBarcode = barcode  // ✅ Pass barcode untuk auto-fill
+            prefillBarcode = barcode
         )
         dialog.show(supportFragmentManager, "AddProdukDialog")
-    }
-    
-    private fun searchAndAddProduk(query: String) {
-        val database = com.minikasirpintarfree.app.data.database.AppDatabase.getDatabase(this)
-        val produkRepository = com.minikasirpintarfree.app.data.repository.ProdukRepository(database.produkDao())
-        
-        lifecycleScope.launch {
-            val produkList = produkRepository.searchProduk(query).first()
-            if (produkList.isNotEmpty()) {
-                val produk = produkList[0] // Take first result
-                val item = com.minikasirpintarfree.app.data.model.TransaksiItem(
-                    produkId = produk.id,
-                    namaProduk = produk.nama,
-                    harga = produk.harga,
-                    quantity = 1,
-                    subtotal = produk.harga
-                )
-                viewModel.addItemToCart(item)
-                Toast.makeText(this@TransaksiActivity, "Produk ditambahkan: ${produk.nama}", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this@TransaksiActivity, "Produk tidak ditemukan", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
     
     private fun showPaymentDialog() {
