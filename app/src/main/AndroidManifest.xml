@@ -29,24 +29,6 @@
         <activity
             android:name=".ui.login.LoginActivity"
             android:exported="false" />
-        <activity
-            android:name=".ui.dashboard.DashboardActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.produk.ProdukActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.transaksi.TransaksiActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.laporan.LaporanActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.settings.SettingsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ui.notifications.NotificationsActivity"
-            android:exported="false" />
     </application>
 
 </manifest>

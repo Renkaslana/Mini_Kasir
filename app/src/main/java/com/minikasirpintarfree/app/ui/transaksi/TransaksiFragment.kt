@@ -1,0 +1,310 @@
+package com.minikasirpintarfree.app.ui.transaksi
+
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.observe
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.zxing.integration.android.IntentIntegrator
+import com.minikasirpintarfree.app.R
+import com.minikasirpintarfree.app.data.database.AppDatabase
+import com.minikasirpintarfree.app.data.model.Transaksi
+import com.minikasirpintarfree.app.data.model.TransaksiItem
+import com.minikasirpintarfree.app.data.repository.ProdukRepository
+import com.minikasirpintarfree.app.data.repository.TransaksiRepository
+import com.minikasirpintarfree.app.databinding.FragmentTransaksiBinding
+import com.minikasirpintarfree.app.utils.PdfGenerator
+import com.minikasirpintarfree.app.utils.NotificationHelper
+import com.minikasirpintarfree.app.ui.produk.AddEditProdukDialogFragment
+import com.minikasirpintarfree.app.viewmodel.TransaksiViewModel
+import com.minikasirpintarfree.app.viewmodel.TransaksiViewModelFactory
+import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
+
+class TransaksiFragment : Fragment() {
+    private var _binding: FragmentTransaksiBinding? = null
+    private val binding get() = _binding!!
+    private lateinit var viewModel: TransaksiViewModel
+    private lateinit var adapter: TransaksiItemAdapter
+    private val CAMERA_PERMISSION_CODE = 100
+    
+    private lateinit var scannerLauncher: ActivityResultLauncher<Intent>
+    
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentTransaksiBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+    
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        try {
+            setupScannerLauncher()
+            
+            val database = AppDatabase.getDatabase(requireContext())
+            val produkRepository = ProdukRepository(database.produkDao())
+            val transaksiRepository = TransaksiRepository(database.transaksiDao())
+            viewModel = ViewModelProvider(
+                this,
+                TransaksiViewModelFactory(transaksiRepository, produkRepository)
+            )[TransaksiViewModel::class.java]
+            
+            NotificationHelper.createNotificationChannel(requireContext())
+            
+            setupRecyclerView()
+            setupClickListeners()
+            observeViewModel()
+        } catch (e: Exception) {
+            android.util.Log.e("TransaksiFragment", "Error in onViewCreated", e)
+            Toast.makeText(requireContext(), "Terjadi kesalahan: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private fun setupScannerLauncher() {
+        scannerLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val scanResult = IntentIntegrator.parseActivityResult(
+                    IntentIntegrator.REQUEST_CODE,
+                    result.resultCode,
+                    result.data
+                )
+                if (scanResult != null && scanResult.contents != null) {
+                    val barcode = scanResult.contents
+                    viewModel.addProdukByBarcode(barcode)
+                }
+            }
+        }
+    }
+    
+    private fun setupRecyclerView() {
+        adapter = TransaksiItemAdapter(
+            onQuantityChange = { item, newQuantity ->
+                viewModel.updateItemQuantity(item, newQuantity)
+            },
+            onItemRemove = { item ->
+                viewModel.removeItemFromCart(item)
+            }
+        )
+        binding.recyclerViewCart.layoutManager = LinearLayoutManager(requireContext())
+        binding.recyclerViewCart.adapter = adapter
+    }
+    
+    private fun setupClickListeners() {
+        binding.btnScanBarcode.setOnClickListener {
+            if (checkCameraPermission()) {
+                startBarcodeScanner()
+            } else {
+                requestCameraPermission()
+            }
+        }
+        
+        binding.btnSearchProduk.setOnClickListener {
+            val query = binding.etSearchProduk.text.toString().trim()
+            if (query.isNotEmpty()) {
+                viewModel.searchAndAddProduk(query)
+            }
+        }
+        
+        binding.btnBayar.setOnClickListener {
+            showPaymentDialog()
+        }
+        
+        binding.btnClearCart.setOnClickListener {
+            viewModel.clearCart()
+        }
+    }
+    
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            viewModel.cartItems.collect { items: List<TransaksiItem> ->
+                adapter.submitList(items)
+                binding.tvEmptyCart.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+            }
+        }
+        
+        viewModel.totalHarga.observe(viewLifecycleOwner) { total: Double ->
+            binding.tvTotalHarga.text = formatCurrency(total)
+        }
+        
+        viewModel.kembalian.observe(viewLifecycleOwner) { kembalian: Double ->
+            binding.tvKembalian.text = formatCurrency(kembalian)
+        }
+        
+        viewModel.errorMessage.observe(viewLifecycleOwner) { message: String ->
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
+        
+        viewModel.successMessage.observe(viewLifecycleOwner) { message: String ->
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
+        
+        viewModel.productNotFound.observe(viewLifecycleOwner) { barcode: String ->
+            showProductNotFoundDialog(barcode)
+        }
+    }
+    
+    private fun checkCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    private fun requestCameraPermission() {
+        ActivityCompat.requestPermissions(
+            requireActivity(),
+            arrayOf(Manifest.permission.CAMERA),
+            CAMERA_PERMISSION_CODE
+        )
+    }
+    
+    @Deprecated("Deprecated in Java")
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CAMERA_PERMISSION_CODE &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startBarcodeScanner()
+        }
+    }
+    
+    private fun startBarcodeScanner() {
+        val integrator = IntentIntegrator.forSupportFragment(this)
+        integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES)
+        integrator.setPrompt("Scan barcode produk")
+        integrator.setCameraId(0)
+        integrator.setBeepEnabled(false)
+        
+        scannerLauncher.launch(integrator.createScanIntent())
+    }
+    
+    private fun showProductNotFoundDialog(barcode: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Produk Tidak Ditemukan")
+            .setMessage("Produk dengan barcode [$barcode] tidak ditemukan.\n\nTambah produk baru dengan barcode ini?")
+            .setPositiveButton("Ya") { _, _ ->
+                showAddProdukDialog(barcode)
+            }
+            .setNegativeButton("Tidak", null)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .show()
+    }
+    
+    private fun showAddProdukDialog(barcode: String) {
+        val dialog = AddEditProdukDialogFragment(
+            produk = null,
+            onSave = { newProduk ->
+                lifecycleScope.launch {
+                    viewModel.insertProdukAndAddToCart(newProduk)
+                }
+            },
+            prefillBarcode = barcode
+        )
+        dialog.show(parentFragmentManager, "AddProdukDialog")
+    }
+    
+    private fun showPaymentDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_payment, null)
+        val etUang = dialogView.findViewById<android.widget.EditText>(R.id.etUangDiterima)
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("Pembayaran")
+            .setView(dialogView)
+            .setPositiveButton("Bayar") { _, _ ->
+                val uang = etUang.text.toString().toDoubleOrNull() ?: 0.0
+                viewModel.setUangDiterima(uang)
+                viewModel.processTransaksi { transaksi ->
+                    NotificationHelper.showTransactionSuccessNotification(requireContext(), transaksi.totalHarga)
+                    showReceiptDialog(transaksi)
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+    
+    private fun showReceiptDialog(transaksi: Transaksi) {
+        val items = viewModel.getTransaksiItems(transaksi)
+        val receiptText = buildReceiptText(transaksi, items)
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("Struk Transaksi")
+            .setMessage(receiptText)
+            .setPositiveButton("Simpan PDF") { _, _ ->
+                saveReceiptAsPdf(transaksi, items)
+            }
+            .setNeutralButton("Share") { _, _ ->
+                shareReceipt(receiptText)
+            }
+            .setNegativeButton("Tutup", null)
+            .show()
+    }
+    
+    private fun buildReceiptText(transaksi: Transaksi, items: List<TransaksiItem>): String {
+        val sb = StringBuilder()
+        sb.appendLine("=== STRUK TRANSAKSI ===")
+        sb.appendLine("Tanggal: ${android.text.format.DateFormat.format("dd/MM/yyyy HH:mm", transaksi.tanggal)}")
+        sb.appendLine("----------------------")
+        items.forEach { item ->
+            sb.appendLine("${item.namaProduk}")
+            sb.appendLine("  ${item.quantity}x ${formatCurrency(item.harga)} = ${formatCurrency(item.subtotal)}")
+        }
+        sb.appendLine("----------------------")
+        sb.appendLine("Total: ${formatCurrency(transaksi.totalHarga)}")
+        sb.appendLine("Bayar: ${formatCurrency(transaksi.uangDiterima)}")
+        sb.appendLine("Kembali: ${formatCurrency(transaksi.kembalian)}")
+        sb.appendLine("======================")
+        return sb.toString()
+    }
+    
+    private fun saveReceiptAsPdf(transaksi: Transaksi, items: List<TransaksiItem>) {
+        try {
+            val pdfPath = PdfGenerator.generateReceipt(requireContext(), transaksi, items)
+            Toast.makeText(requireContext(), "Struk disimpan: $pdfPath", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Gagal menyimpan PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun shareReceipt(receiptText: String) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, receiptText)
+        }
+        startActivity(Intent.createChooser(intent, "Bagikan struk"))
+    }
+    
+    private fun formatCurrency(amount: Double): String {
+        val format = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
+        return format.format(amount)
+    }
+    
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/dashboardFragment"
+        android:icon="@drawable/ic_home"
+        android:title="Home" />
+    <item
+        android:id="@+id/produkFragment"
+        android:icon="@drawable/ic_product"
+        android:title="Produk" />
+    <item
+        android:id="@+id/transaksiFragment"
+        android:icon="@android:drawable/ic_menu_agenda"
+        android:title="Transaksi" />
+    <item
+        android:id="@+id/laporanFragment"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="Laporan" />
+    <item
+        android:id="@+id/settingsFragment"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="Pengaturan" />
+</menu>
+
