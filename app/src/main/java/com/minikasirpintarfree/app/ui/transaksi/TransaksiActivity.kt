@@ -30,6 +30,7 @@ import com.minikasirpintarfree.app.databinding.ActivityTransaksiBinding
 import com.minikasirpintarfree.app.utils.PdfGenerator
 import com.minikasirpintarfree.app.utils.NotificationHelper
 import com.minikasirpintarfree.app.ui.notifications.NotificationsActivity
+import com.minikasirpintarfree.app.ui.produk.AddEditProdukDialogFragment
 import com.minikasirpintarfree.app.viewmodel.TransaksiViewModel
 import com.minikasirpintarfree.app.viewmodel.TransaksiViewModelFactory
 import java.text.NumberFormat
@@ -39,6 +40,7 @@ class TransaksiActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTransaksiBinding
     private lateinit var viewModel: TransaksiViewModel
     private lateinit var adapter: TransaksiItemAdapter
+    private lateinit var produkRepository: ProdukRepository  // ✅ TAMBAHAN: Untuk digunakan di showAddProdukDialog
     private val CAMERA_PERMISSION_CODE = 100
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +50,7 @@ class TransaksiActivity : AppCompatActivity() {
             setContentView(binding.root)
             
             val database = AppDatabase.getDatabase(this)
-            val produkRepository = ProdukRepository(database.produkDao())
+            produkRepository = ProdukRepository(database.produkDao())  // ✅ TAMBAHAN: Initialize repository
             val transaksiRepository = TransaksiRepository(database.transaksiDao())
             viewModel = ViewModelProvider(this, TransaksiViewModelFactory(transaksiRepository, produkRepository))[TransaksiViewModel::class.java]
             
@@ -181,9 +183,52 @@ class TransaksiActivity : AppCompatActivity() {
                 viewModel.addItemToCart(item)
                 Toast.makeText(this@TransaksiActivity, "Produk ditambahkan: ${produk.nama}", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this@TransaksiActivity, "Produk dengan barcode $barcode tidak ditemukan", Toast.LENGTH_SHORT).show()
+                // ✅ FASE 2.1: Ganti Toast dengan AlertDialog
+                showProductNotFoundDialog(barcode)
             }
         }
+    }
+    
+    // ✅ FASE 2.1: Fungsi baru untuk show AlertDialog saat produk tidak ditemukan
+    private fun showProductNotFoundDialog(barcode: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Produk Tidak Ditemukan")
+            .setMessage("Produk dengan barcode [$barcode] tidak ditemukan.\n\nTambah produk baru dengan barcode ini?")
+            .setPositiveButton("Ya") { _, _ ->
+                showAddProdukDialog(barcode)
+            }
+            .setNegativeButton("Tidak", null)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .show()
+    }
+    
+    // ✅ FASE 2.1: Fungsi baru untuk show dialog tambah produk dengan barcode pre-filled
+    private fun showAddProdukDialog(barcode: String) {
+        val dialog = AddEditProdukDialogFragment(
+            produk = null,
+            onSave = { newProduk ->
+                lifecycleScope.launch {
+                    try {
+                        produkRepository.insertProduk(newProduk)
+                        Toast.makeText(this@TransaksiActivity, "Produk berhasil ditambahkan!", Toast.LENGTH_SHORT).show()
+                        
+                        // Auto-add produk ke keranjang setelah berhasil ditambahkan
+                        val item = com.minikasirpintarfree.app.data.model.TransaksiItem(
+                            produkId = newProduk.id,
+                            namaProduk = newProduk.nama,
+                            harga = newProduk.harga,
+                            quantity = 1,
+                            subtotal = newProduk.harga
+                        )
+                        viewModel.addItemToCart(item)
+                    } catch (e: Exception) {
+                        Toast.makeText(this@TransaksiActivity, "Gagal menambahkan produk: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            prefillBarcode = barcode  // ✅ Pass barcode untuk auto-fill
+        )
+        dialog.show(supportFragmentManager, "AddProdukDialog")
     }
     
     private fun searchAndAddProduk(query: String) {
@@ -303,5 +348,3 @@ class TransaksiActivity : AppCompatActivity() {
         }
     }
 }
-
-

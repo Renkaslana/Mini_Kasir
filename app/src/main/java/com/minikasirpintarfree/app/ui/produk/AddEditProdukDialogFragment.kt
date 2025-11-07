@@ -12,7 +12,8 @@ import com.minikasirpintarfree.app.databinding.DialogAddEditProdukBinding
 
 class AddEditProdukDialogFragment(
     private val produk: Produk?,
-    private val onSave: (Produk) -> Unit
+    private val onSave: (Produk) -> Unit,
+    private val prefillBarcode: String? = null  // ✅ TAMBAHAN: Parameter untuk pre-fill barcode
 ) : DialogFragment() {
     private lateinit var binding: DialogAddEditProdukBinding
     
@@ -45,6 +46,13 @@ class AddEditProdukDialogFragment(
             binding.tvTitle.text = "Edit Produk"
         } else {
             binding.tvTitle.text = "Tambah Produk"
+            
+            // ✅ TAMBAHAN: Auto-fill barcode jika ada prefillBarcode
+            if (!prefillBarcode.isNullOrEmpty()) {
+                binding.etBarcode.setText(prefillBarcode)
+                // Focus ke field nama agar user bisa langsung input nama produk
+                binding.etNama.requestFocus()
+            }
         }
         
         binding.btnSave.setOnClickListener {
@@ -89,4 +97,3 @@ class AddEditProdukDialogFragment(
         }
     }
 }
-
