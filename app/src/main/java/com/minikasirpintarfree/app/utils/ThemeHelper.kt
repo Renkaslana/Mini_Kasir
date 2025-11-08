@@ -22,7 +22,7 @@ object ThemeHelper {
     const val THEME_DARK = "dark"
     
     // Default theme
-    private const val DEFAULT_THEME = THEME_SUNSET
+    private const val DEFAULT_THEME = THEME_OCEAN
     
     /**
      * Apply theme to activity

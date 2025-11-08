@@ -19,6 +19,9 @@ class DashboardViewModel(
     private val _totalTransaksiHariIni = MutableLiveData<Int>()
     val totalTransaksiHariIni: LiveData<Int> = _totalTransaksiHariIni
     
+    private val _totalPendapatanHariIni = MutableLiveData<Double>()
+    val totalPendapatanHariIni: LiveData<Double> = _totalPendapatanHariIni
+    
     private val _stokMenipis = MutableLiveData<Int>()
     val stokMenipis: LiveData<Int> = _stokMenipis
     
@@ -44,6 +47,16 @@ class DashboardViewModel(
                 }
             } catch (e: Exception) {
                 _totalTransaksiHariIni.postValue(0)
+            }
+        }
+        
+        viewModelScope.launch {
+            try {
+                transaksiRepository.getTotalPendapatanHariIni().collect { total ->
+                    _totalPendapatanHariIni.postValue(total ?: 0.0)
+                }
+            } catch (e: Exception) {
+                _totalPendapatanHariIni.postValue(0.0)
             }
         }
         

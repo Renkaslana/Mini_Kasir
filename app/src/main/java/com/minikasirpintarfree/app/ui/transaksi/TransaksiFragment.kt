@@ -226,21 +226,56 @@ class TransaksiFragment : Fragment() {
     
     private fun showPaymentDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_payment, null)
-        val etUang = dialogView.findViewById<android.widget.EditText>(R.id.etUangDiterima)
+        val etUang = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.etUangDiterima)
+        val layoutKembalian = dialogView.findViewById<android.widget.LinearLayout>(R.id.layoutKembalian)
+        val tvKembalian = dialogView.findViewById<android.widget.TextView>(R.id.tvKembalian)
+        val btnBayar = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnBayar)
+        val btnBatal = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnBatal)
         
-        AlertDialog.Builder(requireContext())
-            .setTitle("Pembayaran")
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
-            .setPositiveButton("Bayar") { _, _ ->
-                val uang = etUang.text.toString().toDoubleOrNull() ?: 0.0
-                viewModel.setUangDiterima(uang)
-                viewModel.processTransaksi { transaksi ->
-                    NotificationHelper.showTransactionSuccessNotification(requireContext(), transaksi.totalHarga)
-                    showReceiptDialog(transaksi)
+            .create()
+        
+        val totalHarga = viewModel.totalHarga.value ?: 0.0
+        
+        // Setup realtime kembalian calculation
+        etUang.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val uangDiterima = s.toString().toDoubleOrNull() ?: 0.0
+                if (uangDiterima > 0) {
+                    val kembalian = uangDiterima - totalHarga
+                    if (kembalian >= 0) {
+                        layoutKembalian.visibility = View.VISIBLE
+                        tvKembalian.text = formatCurrency(kembalian)
+                        btnBayar.isEnabled = true
+                    } else {
+                        layoutKembalian.visibility = View.GONE
+                        btnBayar.isEnabled = false
+                    }
+                } else {
+                    layoutKembalian.visibility = View.GONE
+                    btnBayar.isEnabled = false
                 }
             }
-            .setNegativeButton("Batal", null)
-            .show()
+        })
+        
+        btnBayar.setOnClickListener {
+            val uang = etUang.text.toString().toDoubleOrNull() ?: 0.0
+            viewModel.setUangDiterima(uang)
+            viewModel.processTransaksi { transaksi ->
+                NotificationHelper.showTransactionSuccessNotification(requireContext(), transaksi.totalHarga)
+                showReceiptDialog(transaksi)
+            }
+            dialog.dismiss()
+        }
+        
+        btnBatal.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
     }
     
     private fun showReceiptDialog(transaksi: Transaksi) {

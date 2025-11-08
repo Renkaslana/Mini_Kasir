@@ -48,12 +48,24 @@ class DashboardFragment : Fragment() {
             
             NotificationHelper.createNotificationChannel(requireContext())
             
+            setupGreeting()
             setupClickListeners()
             observeViewModel()
         } catch (e: Exception) {
             android.util.Log.e("DashboardFragment", "Error in onViewCreated", e)
             Toast.makeText(requireContext(), "Terjadi kesalahan: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+    
+    private fun setupGreeting() {
+        // Get nama toko from SharedPreferences
+        val prefs = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        val namaToko = prefs.getString("nama_toko", "Mini Kasir Pintar") ?: "Mini Kasir Pintar"
+        binding.tvGreeting.text = "Halo, $namaToko 👋"
+        
+        // Set current date
+        val currentDate = java.text.SimpleDateFormat("d MMMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date())
+        binding.tvDate.text = currentDate
     }
     
     private fun setupClickListeners() {
@@ -81,6 +93,17 @@ class DashboardFragment : Fragment() {
         
         viewModel.totalTransaksiHariIni.observe(viewLifecycleOwner) { total: Int ->
             binding.tvTotalTransaksi.text = total.toString()
+        }
+        
+        viewModel.totalPendapatanHariIni.observe(viewLifecycleOwner) { total: Double ->
+            val formattedPendapatan = if (total >= 1000000) {
+                String.format("%.1fJt", total / 1000000)
+            } else if (total >= 1000) {
+                String.format("%.0fK", total / 1000)
+            } else {
+                String.format("%.0f", total)
+            }
+            binding.tvTotalPendapatan.text = formattedPendapatan
         }
         
         viewModel.stokMenipis.observe(viewLifecycleOwner) { total: Int ->
