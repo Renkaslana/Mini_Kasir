@@ -4,6 +4,8 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.minikasirpintarfree.app.data.model.BestSellingProduct
+import com.minikasirpintarfree.app.data.model.Transaksi
 import com.minikasirpintarfree.app.data.repository.ProdukRepository
 import com.minikasirpintarfree.app.data.repository.TransaksiRepository
 import kotlinx.coroutines.launch
@@ -24,6 +26,12 @@ class DashboardViewModel(
     
     private val _stokMenipis = MutableLiveData<Int>()
     val stokMenipis: LiveData<Int> = _stokMenipis
+    
+    private val _bestSellingProducts = MutableLiveData<List<BestSellingProduct>>()
+    val bestSellingProducts: LiveData<List<BestSellingProduct>> = _bestSellingProducts
+    
+    private val _recentTransaksi = MutableLiveData<List<Transaksi>>()
+    val recentTransaksi: LiveData<List<Transaksi>> = _recentTransaksi
     
     init {
         loadDashboardData()
@@ -67,6 +75,26 @@ class DashboardViewModel(
                 }
             } catch (e: Exception) {
                 _stokMenipis.postValue(0)
+            }
+        }
+        
+        viewModelScope.launch {
+            try {
+                transaksiRepository.getBestSellingProducts(5).collect { list ->
+                    _bestSellingProducts.postValue(list)
+                }
+            } catch (e: Exception) {
+                _bestSellingProducts.postValue(emptyList())
+            }
+        }
+        
+        viewModelScope.launch {
+            try {
+                transaksiRepository.getRecentTransaksi(5).collect { list ->
+                    _recentTransaksi.postValue(list)
+                }
+            } catch (e: Exception) {
+                _recentTransaksi.postValue(emptyList())
             }
         }
     }

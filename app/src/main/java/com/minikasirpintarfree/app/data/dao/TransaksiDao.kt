@@ -36,5 +36,8 @@ interface TransaksiDao {
     
     @Query("SELECT SUM(totalHarga) FROM transaksi WHERE date(tanggal/1000, 'unixepoch') = date('now')")
     fun getTotalPendapatanHariIni(): Flow<Double?>
+    
+    @Query("SELECT * FROM transaksi ORDER BY tanggal DESC LIMIT :limit")
+    fun getRecentTransaksi(limit: Int = 5): Flow<List<Transaksi>>
 }
 
